@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="pt-PT">
+<head><meta charset="utf-8"><title>Cambix store fixture</title><style>p { color: #3c4043 !important; opacity: .2 !important; }</style></head>
+<body>
+  <div id="amazon-za" class="a-price">
+    <span class="a-offscreen">R&nbsp;4&nbsp;497,00</span>
+    <span aria-hidden="true"><span>R</span><span>4 497</span><span>00</span></span>
+  </div>
+  <div id="vinted" data-testid="item-price"><span>29,99</span><span> €</span></div>
+  <div id="vinted-unmarked" data-testid="item-price"><span>19,99</span></div>
+  <div id="makro" class="price-widget"><span>R</span><span>3,999</span><small>00</small></div>
+  <div id="bobshop" class="price">R 1 249,00</div>
+  <div id="mrp" class="product-price"><sup>R</sup><span>199.99</span></div>
+  <div id="evetech" class="price-tag">R18,999</div>
+  <div id="amazon-us" class="a-price"><span class="a-offscreen">$1,299.99</span><span aria-hidden="true">$1,29999</span></div>
+  <p id="ebay">US $18.50</p>
+  <p id="other">$39.95 and €12,50</p>
+  <div id="dynamic"></div>
+  <script>
+    window.chrome = {
+      runtime: {
+        getURL: (path) => new URL('../' + path, location.href).href,
+        sendMessage: async () => ({ ok: true, rates: {
+          ZAR: { market: 4 }, USD: { market: 60 }, EUR: { market: 70 }
+        } }),
+        onMessage: { addListener(listener) { window.cambixListener = listener; } }
+      },
+      storage: {
+        local: { get: async () => ({ cambix_auto_detect: false, cambix_theme: location.search.includes('light') ? 'light' : 'dark' }) },
+        onChanged: { addListener(listener) { window.cambixStorageListener = listener; } }
+      }
+    };
+    function send(message) {
+      return new Promise((resolve) => window.cambixListener(message, null, resolve));
+    }
+  </script>
+  <script src="../price-parser.js"></script>
+  <script src="../content.js"></script>
+  <script>
+    (async () => {
+      const before = await send({ type: 'CAMBIX_STATUS' });
+      const converted = await send({ type: 'CAMBIX_CONVERT', mode: 'market' });
+      document.getElementById('dynamic').textContent = '$25.00';
+      setTimeout(async () => {
+        const after = await send({ type: 'CAMBIX_STATUS' });
+        const dynamicConverted = document.getElementById('dynamic').textContent.includes('MZN');
+        const badge = document.querySelector('.cambix-badge');
+        const inlineAmount = document.querySelector('.cambix-inline-amount');
+        const badgeFontSize = badge && getComputedStyle(badge).fontSize;
+        const inlineFontSize = inlineAmount && getComputedStyle(inlineAmount).fontSize;
+        const inlineBackground = inlineAmount && getComputedStyle(inlineAmount).backgroundColor;
+        const reverted = await send({ type: 'CAMBIX_REVERT' });
+        window.cambixStorageListener({ cambix_auto_detect: { newValue: true } });
+        setTimeout(() => {
+          const prompt = document.getElementById('cambix-prompt');
+          const promptLogo = prompt?.querySelector('img');
+          const promptMessage = prompt?.querySelector('p');
+          document.body.dataset.testResult = JSON.stringify({
+          before: before.found,
+          converted: converted.count,
+          after: after.found,
+          dynamicConverted,
+          badgeFontSize,
+          inlineFontSize,
+          inlineBackground,
+          reverted: reverted.count,
+          badgesRemaining: document.querySelectorAll('.cambix-badge').length,
+          inlineAmountsRemaining: document.querySelectorAll('.cambix-inline-amount').length,
+          originalRestored: document.getElementById('ebay').textContent === 'US $18.50',
+          promptLogoLoaded: promptLogo?.naturalWidth > 0,
+          promptHasTextHeading: !!prompt?.querySelector('strong'),
+          promptMessageColor: promptMessage && getComputedStyle(promptMessage).color,
+          promptMessageOpacity: promptMessage && getComputedStyle(promptMessage).opacity
+          });
+        }, 800);
+      }, 1200);
+    })();
+  </script>
+</body>
+</html>

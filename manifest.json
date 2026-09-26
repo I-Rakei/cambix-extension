@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Cambix - Conversor para MZN",
+  "version": "1.4.0",
+  "minimum_chrome_version": "114",
+  "description": "Consulte as taxas Cambix e converta preços de páginas para Meticais.",
+  "permissions": ["storage", "activeTab", "sidePanel"],
+  "host_permissions": ["https://cambix-server.rakei.co.za/*"],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "panel.html" },
+  "action": {
+    "default_title": "Abrir Cambix na barra lateral",
+    "default_icon": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" }
+  },
+  "icons": { "16": "icons/icon16.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
+  "web_accessible_resources": [{ "resources": ["fonts/InterVariable.woff2", "icons/logo-blue.png"], "matches": ["http://*/*", "https://*/*"] }],
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["price-parser.js", "content.js"],
+    "run_at": "document_idle"
+  }]
+}

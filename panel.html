@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-MZ">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cambix</title>
+  <link rel="stylesheet" href="panel.css">
+</head>
+<body>
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><img src="icons/icon48.png" width="47" height="47" alt="Cambix"></div>
+      <button type="button" id="theme-toggle" class="icon-button" aria-label="Ativar modo claro" title="Alternar tema">☀</button>
+    </header>
+
+    <section class="intro" aria-labelledby="heading">
+      <h1 id="heading">Conversor para MZN</h1>
+      <p>Consulte as taxas e simule uma compra na página atual.</p>
+    </section>
+
+    <section class="card calculator" aria-label="Calculadora de câmbio">
+      <div class="card-heading"><h2>Calculadora</h2><span class="badge">MZN</span></div>
+      <div class="field">
+        <label for="amount">Valor da compra</label>
+        <div class="input-row">
+          <input id="amount" type="number" inputmode="decimal" min="0" step="any" value="1000">
+          <select id="currency" aria-label="Moeda da compra">
+            <option value="ZAR">ZAR</option><option value="USD">USD</option>
+            <option value="EUR">EUR</option><option value="GBP">GBP</option>
+            <option value="CAD">CAD</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mode">Taxa aplicada</label>
+        <select id="mode" class="mode-select">
+          <option value="market">Mercado</option>
+          <option value="bim">BIM</option>
+          <option value="bci">BCI</option>
+        </select>
+      </div>
+      <div class="result">
+        <span>Valor estimado</span>
+        <strong id="converted">A calcular</strong>
+        <small id="rate-line">A carregar taxa…</small>
+      </div>
+      <p id="rate-status" class="status" role="status"></p>
+    </section>
+
+    <section class="card page-tools" aria-labelledby="page-heading">
+      <div class="card-heading"><h2 id="page-heading">Nesta página</h2><span id="page-count" class="count">A verificar…</span></div>
+      <div class="actions">
+        <button type="button" id="convert" class="filled">Converter preços</button>
+        <button type="button" id="revert" class="outlined" disabled>Reverter</button>
+      </div>
+      <label class="toggle-row"><span>Detetar preços automaticamente</span><input id="auto-detect" type="checkbox" checked><span class="switch" aria-hidden="true"></span></label>
+      <p id="page-status" class="status" role="status"></p>
+    </section>
+
+    <footer><a href="https://cambix.rakei.co.za" target="_blank" rel="noopener noreferrer">Abrir o site Cambix ↗</a><span>Valores estimados em Meticais</span></footer>
+  </main>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

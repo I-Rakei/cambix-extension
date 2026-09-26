@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en-ZA">
+<head><meta charset="utf-8"><title>Takealot price fixture</title></head>
+<body>
+  <div id="from-split"><span>From</span><span>R</span><strong>102</strong></div>
+  <div id="from-spaced"><span>From </span><span>R 399</span></div>
+  <div id="sale"><span class="current-price">R 1,499</span><s>R 1,999</s></div>
+  <div id="plain-split"><span>R</span><strong>450</strong></div>
+  <div id="accessible-price" aria-label="Price from 275 rand"><span>From</span><strong>275</strong></div>
+  <div id="discounted-aria" aria-label="Price R 599"><strong id="deal-current"><span>R</span><span>599</span></strong><span class="old-price">R 999</span></div>
+  <div id="discounted-css" data-ref="price"><strong id="css-current"><span>R</span><span>399</span></strong><span id="css-old" style="text-decoration:line-through">R 519</span></div>
+  <div id="discounted-small"><strong id="small-current"><span>R</span><span>168</span></strong><s>R 299</s></div>
+  <div id="dynamic"></div>
+  <script>
+    window.chrome = {
+      runtime: {
+        getURL: (path) => new URL('../' + path, location.href).href,
+        sendMessage: async () => ({ ok: true, rates: { ZAR: { market: 4, bim: 5 } } }),
+        onMessage: { addListener(listener) { window.cambixListener = listener; } }
+      },
+      storage: {
+        local: { get: async () => ({ cambix_auto_detect: false }) },
+        onChanged: { addListener() {} }
+      }
+    };
+    function send(message) {
+      return new Promise((resolve) => window.cambixListener(message, null, resolve));
+    }
+  </script>
+  <script src="../price-parser.js"></script>
+  <script src="../content.js"></script>
+  <script>
+    (async () => {
+      const before = await send({ type: 'CAMBIX_STATUS' });
+      const converted = await send({ type: 'CAMBIX_CONVERT', mode: 'market' });
+      const badges = [...document.querySelectorAll('.cambix-badge')].map((badge) => badge.textContent);
+      const discountedAnchors = ['discounted-aria', 'discounted-css', 'discounted-small'].map((id) =>
+        document.getElementById(id).querySelector('.cambix-badge')?.previousElementSibling?.id || null);
+      const oldPriceText = document.querySelector('.old-price').textContent;
+      const cssOldPriceText = document.getElementById('css-old').textContent;
+      const oldPricesUntouched = oldPriceText === 'R 999' && cssOldPriceText === 'R 519' &&
+        document.querySelector('#discounted-small s').textContent === 'R 299';
+      const reconverted = await send({ type: 'CAMBIX_CONVERT', mode: 'bim' });
+      const bimAmount = document.querySelector('#discounted-aria .cambix-badge')?.textContent;
+      document.getElementById('dynamic').innerHTML = '<span>From</span><span>R</span><strong>50</strong>';
+      setTimeout(async () => {
+      const dynamicConverted = document.getElementById('dynamic').nextElementSibling?.textContent.includes('250,00 MZN');
+      const reverted = await send({ type: 'CAMBIX_REVERT' });
+      document.body.dataset.testResult = JSON.stringify({
+        before: before.found,
+        converted: converted.count,
+        badges,
+        discountedAnchors,
+        oldPricesUntouched,
+        oldPriceText,
+        cssOldPriceText,
+        reconverted: reconverted.count,
+        bimAmount,
+        dynamicConverted,
+        reverted: reverted.count,
+        restored: document.getElementById('from-split').textContent === 'FromR102'
+      });
+      }, 900);
+    })();
+  </script>
+</body>
+</html>
