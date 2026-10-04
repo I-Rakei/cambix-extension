@@ -11,6 +11,7 @@
   const OLD_PRICE_ELEMENTS = 's, del, [class*="old-price" i], [class*="list-price" i], [class*="was-price" i]';
   const format = new Intl.NumberFormat('pt-MZ', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const badgeStyle = 'display:inline-block;margin-inline-start:6px;padding:2px 6px;border-radius:4px;font:600 14px CambixInter,Arial,sans-serif;white-space:nowrap;vertical-align:baseline';
+  const siteChoiceKey = `cambix_site_choice:${location.hostname.replace(/^www\./i, '').toLowerCase()}`;
   const fontStyle = document.createElement('style');
   fontStyle.textContent = `@font-face{font-family:CambixInter;src:url("${chrome.runtime.getURL('fonts/InterVariable.woff2')}") format("woff2");font-weight:100 900;font-display:swap}`;
   (document.head || document.documentElement).append(fontStyle);
@@ -22,6 +23,12 @@
   let refreshTimer;
   let busy = false;
   let autoDetect = true;
+  let settingsLoaded = false;
+  let siteChoice = null;
+  let choiceChangedLocally = false;
+  let savedMode = 'market';
+  let autoAttemptedUrl = null;
+  let pausedUrl = null;
   let promptShown = false;
   let theme;
   let activeRates = null;
@@ -247,7 +254,14 @@
     return count;
   }
 
-  async function convert(mode) {
+  async function rememberSite(choice) {
+    choiceChangedLocally = true;
+    siteChoice = choice;
+    dismissPrompt();
+    await chrome.storage.local.set({ [siteChoiceKey]: choice });
+  }
+
+  async function convert(mode, remember = true) {
     if (busy) return { ok: false, error: 'Conversão em curso.' };
     busy = true;
     try {
@@ -256,11 +270,14 @@
       restore();
       activeRates = result.rates;
       activeMode = mode;
+      pausedUrl = null;
       const count = applyPending(activeRates, activeMode);
       dismissPrompt();
+      if (remember) await rememberSite('convert').catch(() => {});
       return { ok: true, count, stale: result.stale };
     } finally {
       busy = false;
+      if (lastUrl !== location.href) scheduleRefresh();
     }
   }
 
@@ -293,14 +310,15 @@
     const dismiss = document.createElement('button');
     dismiss.textContent = 'Ignorar';
     dismiss.style.cssText = `border:1px solid ${blue};border-radius:20px;background:transparent;color:${blue};padding:8px 12px;font:600 14px CambixInter,Arial,sans-serif;cursor:pointer`;
-    dismiss.addEventListener('click', dismissPrompt);
+    dismiss.addEventListener('click', () => {
+      rememberSite('ignore').catch(() => {});
+    });
     const accept = document.createElement('button');
     accept.textContent = 'Converter';
     accept.style.cssText = `border:1px solid ${blue};border-radius:20px;background:${blue};color:${light ? '#fff' : '#202124'};padding:8px 12px;font:600 14px CambixInter,Arial,sans-serif;cursor:pointer`;
     accept.addEventListener('click', async () => {
       accept.disabled = true;
-      const { cambix_mode } = await chrome.storage.local.get('cambix_mode');
-      const result = await convert(validMode(cambix_mode));
+      const result = await convert(savedMode).catch(() => ({ ok: false, error: 'Não foi possível converter esta página.' }));
       if (!result.ok) { message.textContent = result.error; accept.disabled = false; }
     });
     row.append(dismiss, accept);
@@ -316,9 +334,24 @@
     if (lastUrl !== location.href) {
       lastUrl = location.href;
       promptShown = false;
+      autoAttemptedUrl = null;
+      pausedUrl = null;
+      dismissPrompt();
     }
-    if (activeRates) applyPending(activeRates, activeMode);
-    else if (autoDetect) showPrompt(collect().count);
+    if (activeRates) {
+      applyPending(activeRates, activeMode);
+      return;
+    }
+    if (!settingsLoaded || !autoDetect || pausedUrl === location.href) return;
+    const count = collect().count;
+    if (siteChoice === 'convert') {
+      if (count && autoAttemptedUrl !== location.href) {
+        autoAttemptedUrl = location.href;
+        convert(savedMode, false).catch(() => {});
+      }
+    } else if (siteChoice !== 'ignore') {
+      showPrompt(count);
+    }
   }
 
   function scheduleRefresh() {
@@ -332,6 +365,7 @@
     } else if (message?.type === 'CAMBIX_REVERT') {
       activeRates = null;
       activeMode = null;
+      pausedUrl = location.href;
       reply({ ok: true, count: restore() });
     } else if (message?.type === 'CAMBIX_CONVERT') {
       convert(validMode(message.mode)).then(reply).catch(() => reply({ ok: false, error: 'Não foi possível converter esta página.' }));
@@ -347,6 +381,12 @@
       else dismissPrompt();
     }
     if (changes.cambix_theme) theme = changes.cambix_theme.newValue;
+    if (changes.cambix_mode) savedMode = validMode(changes.cambix_mode.newValue);
+    if (changes[siteChoiceKey]) {
+      siteChoice = changes[siteChoiceKey].newValue;
+      if (siteChoice === 'ignore') dismissPrompt();
+      else if (siteChoice === 'convert') scheduleRefresh();
+    }
   });
 
   observer = new MutationObserver((records) => {
@@ -359,9 +399,12 @@
   });
   observer.observe(document.body, { childList: true, characterData: true, subtree: true });
 
-  chrome.storage.local.get(['cambix_auto_detect', 'cambix_theme']).then((settings) => {
+  chrome.storage.local.get(['cambix_auto_detect', 'cambix_theme', 'cambix_mode', siteChoiceKey]).then((settings) => {
     autoDetect = settings.cambix_auto_detect !== false;
     theme = settings.cambix_theme;
+    savedMode = validMode(settings.cambix_mode);
+    if (!choiceChangedLocally) siteChoice = settings[siteChoiceKey];
+    settingsLoaded = true;
     if (autoDetect) setTimeout(refresh, 1200);
   });
 })();
