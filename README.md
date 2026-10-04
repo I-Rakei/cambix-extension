@@ -1,8 +1,6 @@
 # Cambix para Chrome e Edge
 
-Extensão Manifest V3 para simular compras e converter preços em USD, ZAR, EUR, GBP e CAD para Meticais. A extensão consulta `https://cambix-server.rakei.co.za/api/bancomoc/exchangerates-weekly`, o mesmo destino que o frontend Cambix usa através da sua rota `/api/bancomoc/exchangerates-weekly`.
-
-## Instalação
+Extensão Manifest V3 para simular compras e converter preços em USD, ZAR, EUR, GBP e CAD para meticais. A extensão consulta o câmbio do mercado e coloca o markup dos bancos BCI e BIM.
 
 1. Abra `chrome://extensions` ou `edge://extensions`.
 2. Ative o modo de programador.
